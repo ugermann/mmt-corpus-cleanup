@@ -57,7 +57,14 @@ class Chunk:
         for k,v in node.attrib.items():
             setattr(self,k,v)
         self.lang = node.attrib['{http://www.w3.org/XML/1998/namespace}lang']
-        self.text = unescape(node[0].text) if len(node) and node[0].text else ""
+        if len(node) and node[0].text:
+            t = re.sub('[[:whitspace:]]+', ' ', node[0].text.strip())
+            t = ' '.join(t.split()).strip()
+            self.text = re.sub('[[:whitspace:]]+', ' ', unescape(t))
+            self.text = self.text.replace('\n',' ')
+            self.text = ' '.join(self.text.strip().split())
+        else:
+            self.text = ""
         return
     
 class TranslationUnit:
@@ -69,6 +76,7 @@ class TranslationUnit:
         self.changedate = datetime.strptime(self.changedate,"%Y%m%dT%H%M%SZ")
         self.creationdate = datetime.strptime(self.creationdate,"%Y%m%dT%H%M%SZ")
         self.segs = {}
+        self.history = []
         for child in node:
             if child.tag == 'prop':
                  if child.attrib['type'] == 'tda-type':
@@ -91,6 +99,12 @@ class TranslationUnit:
         return self.src.text == other.src.text
     def __cmp__(self,other):
         return cmp(self.src.text, other.src.text)
+
+    def update(self, other):
+        self.history.append((self.trg.text, self.changedate))
+        self.trg.text = other.trg.text
+        self.changedate = other.changedate
+        return
     pass # end of class
                  
 def process_tu(elem):
@@ -105,8 +119,7 @@ def process_tu(elem):
         # occurrence, so we keep the original tuid.
         # print("old: {:4d} {}".format(tu1.tuid, tu1.trg.text))
         # print("new: {:4d} {}".format(tu2.tuid, tu2.trg.text))
-        tu1.trg.text = tu2.trg.text
-        tu1.changedate = tu2.changedate
+        tu1.update(tu2)
         pass
     return
 
@@ -120,6 +133,7 @@ if __name__ == "__main__":
     global srclang 
     opts = a.parse_args(sys.argv[1:])
     srclang = opts.srclang
+    fmt = "%y-%m-%d %H:%M:%S"
 
     for ifile in opts.input:
         sys.stderr.write("Processing %s\n"%ifile)
@@ -130,8 +144,17 @@ if __name__ == "__main__":
             tunits = sorted(tmx, key=lambda x: x.tuid)
             if opts.odir == "-":
                 for tu in tunits:
-                    print("[{}] {:4d} {}".format(domain,tu.tuid, tu.src.text))
-                    print("[{}] {:4d} {}".format(domain,tu.tuid, tu.trg.text))
+                    # print([tu.src.text])
+                    # print([tu.trg.text])
+                    d = tu.creationdate
+                    print("{:>5s} {} {}] {}".format\
+                          ("[%d"%tu.tuid, domain, d.strftime(fmt), tu.src.text))
+                    for t,d in tu.history:
+                        print("{:>5s} {} {}] {}".format\
+                              ("[%d"%tu.tuid, domain, d.strftime(fmt), t))
+                    d = tu.changedate
+                    print("{:>5s} {} {}] {}".format\
+                          ("[%d"%tu.tuid, domain, d.strftime(fmt), tu.trg.text))
                     print()
             else:
                 # create subdirectory for domain
@@ -152,6 +175,7 @@ if __name__ == "__main__":
                 for tu in tunits:
                     print(tu.src.text, file=out1)
                     print(tu.trg.text, file=out2)
+
                 # rename temporary files after completion
                 os.rename(out1.name, out1.name[:-1])
                 os.rename(out2.name, out2.name[:-1])
