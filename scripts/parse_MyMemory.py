@@ -58,9 +58,9 @@ class Chunk:
             setattr(self,k,v)
         self.lang = node.attrib['{http://www.w3.org/XML/1998/namespace}lang']
         if len(node) and node[0].text:
-            t = re.sub('[[:whitspace:]]+', ' ', node[0].text.strip())
+            t = re.sub('\s+', ' ', node[0].text.strip())
             t = ' '.join(t.split()).strip()
-            self.text = re.sub('[[:whitspace:]]+', ' ', unescape(t))
+            self.text = re.sub('\s+', ' ', unescape(t))
             self.text = self.text.replace('\n',' ')
             self.text = ' '.join(self.text.strip().split())
         else:
@@ -72,7 +72,7 @@ class TranslationUnit:
         global srclang
         for k,v in node.attrib.items():
             setattr(self,k,v)
-        self.tuid = int(self.tuid)
+        self.tuid = int(re.sub('\D','',self.tuid))
         self.changedate = datetime.strptime(self.changedate,"%Y%m%dT%H%M%SZ")
         self.creationdate = datetime.strptime(self.creationdate,"%Y%m%dT%H%M%SZ")
         self.segs = {}
