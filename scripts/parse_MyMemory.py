@@ -71,6 +71,7 @@ class TranslationUnit:
     def __init__(self,node):
         global srclang
         for k,v in node.attrib.items():
+            print(k,v)
             setattr(self,k,v)
         self.tuid = int(re.sub('\D','',self.tuid))
         self.changedate = datetime.strptime(self.changedate,"%Y%m%dT%H%M%SZ")
@@ -84,7 +85,8 @@ class TranslationUnit:
                     pass
             elif child.tag == 'tuv':
                 child = Chunk(child)
-                if child.lang[:len(srclang)] == srclang:
+                # if child.lang[:len(srclang)] == srclang:
+                if child.lang[:2] == srclang[:2]:
                     srclang = child.lang
                     self.src = child
                 else:
@@ -109,8 +111,12 @@ class TranslationUnit:
                  
 def process_tu(elem):
     tu2 = TranslationUnit(elem)
-    if tu2.src == "" or tu2.trg == "":
-        return
+    try:
+        if tu2.src == "" or tu2.trg == "":
+            return
+    except:
+        print(tu2.tuid)
+        assert(False)
     tu1 = D[tu2.domain].setdefault(tu2,tu2)
     if tu1.changedate < tu2.changedate:
         # We leave tu1 in the dictionary and update only what we want
@@ -159,10 +165,11 @@ if __name__ == "__main__":
                     print()
             else:
                 # create subdirectory for domain
-                try:
-                    os.makedirs(opts.odir+"/"+domain)
-                except:
-                    pass
+                if opts.keep_domain_info:
+                    try:
+                        os.makedirs(opts.odir+"/"+domain)
+                    except:
+                        pass
                 # create output file pattern
                 obase  = "%s/"%opts.odir
                 if opts.keep_domain_info:
