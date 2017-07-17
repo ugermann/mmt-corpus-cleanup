@@ -71,11 +71,19 @@ class TranslationUnit:
     def __init__(self,node):
         global srclang
         for k,v in node.attrib.items():
-            print(k,v)
+            # print(k,v)
             setattr(self,k,v)
         self.tuid = int(re.sub('\D','',self.tuid))
-        self.changedate = datetime.strptime(self.changedate,"%Y%m%dT%H%M%SZ")
-        self.creationdate = datetime.strptime(self.creationdate,"%Y%m%dT%H%M%SZ")
+        if getattr(self,"changedate",None):
+            self.changedate = datetime.strptime(self.changedate,"%Y%m%dT%H%M%SZ")
+        else:
+            self.changedate = datetime.now()
+            pass
+        if getattr(self,"creationdate",None):
+            self.creationdate = datetime.strptime(self.creationdate,"%Y%m%dT%H%M%SZ")
+        else:
+            self.creationdate = datetime.now()
+            pass
         self.segs = {}
         self.history = []
         for child in node:
