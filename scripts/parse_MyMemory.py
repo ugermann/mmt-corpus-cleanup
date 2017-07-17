@@ -29,7 +29,7 @@ def unescape(text):
     return ret
     
 # from: https://gist.github.com/Sukonnik-Illia/7419f0a1f50530ba30e5
-def fast_iter(context, process, *args, **kwargs):
+def fast_iter(filename, context, process, *args, **kwargs):
     """
     Iteration that removes processed elements after processing, to keep
     memory consumption down. Otherwise, incremental parsing will still build
@@ -40,7 +40,7 @@ def fast_iter(context, process, *args, **kwargs):
         process(elem, *args, **kwargs)
         ctr += 1
         if ctr % 10000 == 0:
-            sys.stderr.write("%d K units processed.\n"%(ctr/1000))
+            sys.stderr.write("%d K units processed [%s].\n"%((ctr/1000),filename))
         elem.clear()
         while elem.getprevious() is not None:
             del elem.getparent()[0]
@@ -129,6 +129,7 @@ if __name__ == "__main__":
     a.add_argument("input", nargs='+', help="Input TMX file(s)")
     a.add_argument("-o", help="output dir", default="-", dest="odir")
     a.add_argument("-z",dest="gzip",action="store_true", help="output dir",default=False)
+    a.add_argument("-D",dest="keep_domain_info",action="store_true", help="create domain-specific subdirectories and tags",default=False)
 
     global srclang 
     opts = a.parse_args(sys.argv[1:])
@@ -138,7 +139,7 @@ if __name__ == "__main__":
     for ifile in opts.input:
         sys.stderr.write("Processing %s\n"%ifile)
         context = etree.iterparse(ifile, events=('end',),tag='tu')
-        fast_iter(context, process_tu)
+        fast_iter(ifile, context, process_tu)
     
         for domain,tmx in D.items():
             tunits = sorted(tmx, key=lambda x: x.tuid)
@@ -163,15 +164,18 @@ if __name__ == "__main__":
                 except:
                     pass
                 # create output file pattern
-                obase  = "%s/%s/"%(opts.odir,domain)
+                obase  = "%s/"%opts.odir
+                if opts.keep_domain_info:
+                    obase += "%s/"%domain
                 obase += re.sub(r'.tmx(?:.gz)?', '', os.path.basename(ifile))
-                obase += "_%s"%(domain)
+                if opts.keep_domain_info:
+                    obase += "_%s"%(domain)
                 if opts.gzip:
-                    out1 = gzip.open("%s.%s.gz_"%(obase,tunits[0].src.lang),'w')
-                    out2 = gzip.open("%s.%s.gz_"%(obase,tunits[0].trg.lang),'w')
+                    out1 = gzip.open("%s.%s.gz_"%(obase,tunits[0].src.lang[:2]),'w')
+                    out2 = gzip.open("%s.%s.gz_"%(obase,tunits[0].trg.lang[:2]),'w')
                 else:
-                    out1 = open("%s.%s_"%(obase,tunits[0].src.lang),'w')
-                    out2 = open("%s.%s_"%(obase,tunits[0].trg.lang),'w')
+                    out1 = open("%s.%s_"%(obase,tunits[0].src.lang[:2]),'w')
+                    out2 = open("%s.%s_"%(obase,tunits[0].trg.lang[:2]),'w')
                 for tu in tunits:
                     print(tu.src.text, file=out1)
                     print(tu.trg.text, file=out2)
